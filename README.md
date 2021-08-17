@@ -1,3 +1,5 @@
+Credits to dskeller
+
 # _MakeFS
 create standard file server with needed roles and features and default shares
 
