@@ -388,13 +388,12 @@ if (($Certificate.IsPresent -eq $true) -or ($All.IsPresent -eq $true)) {
 
   [NewRequest]
   Exportable = TRUE                                                      ; TRUE = Private key is exportable
-  KeyLength = 4096                                                       ; Valid key sizes: 1024, 2048, 4096, 8192, 16384
+  KeyLength = 256                                                        ; Valid key sizes: 256,384,512
   KeySpec = 1                                                            ; Key Exchange – Required for encryption
-  KeyAlgorithm = ECDSA_P256                                              ; Algorithm used to generate key pair
   MachineKeySet = TRUE                                                   ; The default is false.
   PrivateKeyArchive = FALSE                                              ; The PrivateKeyArchive setting works only if the corresponding RequestType is set to "CMC"
-  ProviderName = "Microsoft Enhanced RSA and AES Cryptographic Provider"
-  ProviderType = 24                                                      ; PROV_RSA_AES
+  ProviderName = "Microsoft Software Key Storage Provider"
+  ProviderType = 23                                                      ; nistP256
   RequestType = PKCS10                                                   ; Determines the standard that is used to generate and send the certificate request (PKCS10 -- 1)
   SMIME = False                                                          ; Refer to symmetric encryption algorithms that may be used by Secure Multipurpose Internet Mail Extensions (S/MIME)
   Subject = "E=$Mail, CN=$FQDN, OU=$OrganizationalUnit, O=$Organization, L=$City, S=$State, C=$Country"
