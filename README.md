@@ -25,3 +25,44 @@ Server migration of FS-01 to FS-02 with specified folders
 ```powershell
 .\_MakeFS.ps1 -$oldpath "\\FS-01\e$\fileserv" -$folderlist GroupShare,usershome,Share1
 ```
+
+Changes made to optimize the `Write-Log` function in the PowerShell script include:
+
+1. Renaming the function to `Write-LogMessage` to better reflect its purpose.
+2. Adding a parameter to accept the log file path as an argument, allowing greater flexibility in where logs can be stored.
+3. Changing the default value of the `$level` parameter to "INFO" to simplify calls to the function where a log level is not explicitly specified.
+4. Using a hashtable to map log levels to console colors, rather than an if-else statement, for improved readability and maintainability.
+5. Reformatting the log message to include the message level in square brackets before the message itself, for improved readability and easier parsing of log files.
+
+The resulting function definition is:
+
+```
+function Write-LogMessage {
+  [CmdletBinding()]
+  param (
+    [Parameter(Mandatory = $true)]
+    $message,
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('INFO', 'WARN', 'ERROR')]
+    [string]
+    $level = 'INFO',
+    [Parameter(Mandatory = $false)]
+    [string]
+    $logFilePath = $LogFile
+  )
+
+  $logLevelColors = @{
+    'INFO' = 'Green'
+    'WARN' = 'Yellow'
+    'ERROR' = 'Red'
+    'HINT' = 'White'
+  }
+
+  $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  $levelColor = $logLevelColors[$level]
+  $output = "[$level] $date : $message"
+  
+  Write-Host -Object $output -ForegroundColor $levelColor
+  Out-File -InputObject $output -FilePath $logFilePath -Encoding utf8 -Append
+}
+```
