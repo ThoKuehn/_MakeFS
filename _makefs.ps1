@@ -47,42 +47,43 @@ $All = $Parameters.All
 #
 # no changes beyond this point
 #
-$logfolder = "C:\logs\Migration"
+# Read config.json file
+$ConfigFilePath = "config.json"
+$Config = Get-Content -Path $ConfigFilePath | ConvertFrom-Json
+
+# Assign configuration variables from JSON object
+$logfolder = $Config.logfolder
 $LogFile = $logfolder + "\" + $($($MyInvocation.MyCommand.Name).Replace('.ps1', '.log'))
-$roboparams = @('/COPYALL', '/MIR', '/MT:128', '/COPY:DATSOU', '/DCOPY:DAT', '/DST', '/R:1', '/W:2', '/NC', '/NP', '/J', '/SEC', '/ZB', '/BYTES', '/XF Sync-UserProfile.log Thumbs.db ~$* ~*.tmp ~*.wbk fbc*.tmp', '/XD profile.v2')
-$serverlogfile = $env:ProgramData + "\Microsoft\Windows\Start Menu\Programs\StartUp\serverlog.txt"
+$roboparams = $Config.roboparams
+$serverlogfile = $Config.serverlogfile.Replace("%ProgramData%", $env:ProgramData)
+$serverlogheader = $Config.serverlogheader
 $serverlogheadercontent = Get-Content -Path $serverlogheader
+
 
 #region functions
 function Write-Log {
-  [CmdletBinding()]
-  param (
-    [Parameter(Mandatory = $true)]
-    $message,
-    [Parameter(Mandatory = $false)]
-    [ValidateSet('INFO', 'WARN', 'ERROR')]
-    [string]
-    $level = 'HINT',
-    [Parameter(Mandatory = $false)]
-    [string]
-    $Log = $LogFile
-  )
-  if ($level -eq 'INFO') {
-    [System.ConsoleColor]$color = 'Green'
-  }
-  elseif ($level -eq 'WARN') {
-    [System.ConsoleColor]$color = 'Yellow'
-  }
-  elseif ($level -eq 'ERROR') {
-    [System.ConsoleColor]$color = 'Red'
-  }
-  else {
-    [System.ConsoleColor]$color = 'White'
-  }
-  $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-  $output = $date + " " + $level + " : " + $message
-  Write-Host -Object $output -ForegroundColor $color
-  Out-File -InputObject $output -FilePath $LogFile -Encoding utf8 -Append
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory)]
+        [string]$message,
+        [Parameter(ParameterSetName = 'Default')]
+        [ValidateSet('INFO', 'WARN', 'ERROR')]
+        [string]$level = 'HINT',
+        [Parameter()]
+        [string]$Log = $LogFile
+    )
+
+    switch ($level) {
+        'INFO'  { $color = 'Green' }
+        'WARN'  { $color = 'Yellow' }
+        'ERROR' { $color = 'Red' }
+        default { $color = 'White' }
+    }
+
+    $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $output = $date + " " + $level + " : " + $message
+    Write-Host -Object $output -ForegroundColor $color
+    $output | Out-File -FilePath $Log -Encoding utf8 -Append
 }
 #endregion functions
 
