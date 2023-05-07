@@ -1,0 +1,22 @@
+{
+  "oldserver": "OldServerName",
+  "Serverlog": true,
+  "serverlogheader": "C:\\Path\\To\\serverlog-header.txt",
+  "FileService": true,
+  "sharelist": ["groupshare", "usershome$", "images$", "usersprofile$"],
+  "newpath": "E:\\fileserv",
+  "createshare": true,
+  "InstallWindowsFeatures": true,
+  "UninstallWindowsFeatures": false,
+  "PrintService": true,
+  "DHCPService": true,
+  "Certificate": true,
+  "FQDN": "server.example.com",
+  "Mail": "mail@example.com",
+  "Organization": "Example Organization",
+  "OrganizationalUnit": "Example OU",
+  "City": "Example City",
+  "State": "Schleswig-Holstein",
+  "Country": "DE",
+  "All": true
+}

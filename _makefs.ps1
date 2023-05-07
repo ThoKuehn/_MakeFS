@@ -13,64 +13,35 @@
   - DHCP Server Migration
   - Computer certificate request for work folder service
 #>
-[CmdletBinding(DefaultParameterSetName = 'None')]
-param (
-  [Parameter(Mandatory = $true, ParameterSetName = 'PrintService')]
-  [Parameter(Mandatory = $true, ParameterSetName = 'DHCPService')]
-  [Parameter(Mandatory = $true, ParameterSetName = 'FileService')]
-  [Parameter(Mandatory = $true, ParameterSetName = 'All')]
-  [string]$oldserver, # Name of the old server
-  [Parameter(Mandatory = $false, ParameterSetName = 'Serverlog')]
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [switch]$Serverlog, # Switch to create serverlog file in startup
-  [Parameter(Mandatory = $false, ParameterSetName = 'Serverlog')]
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [string]$serverlogheader = "$PSScriptRoot\serverlog-header.txt", # default is a file in script folder
-  [Parameter(Mandatory = $false, ParameterSetName = 'FileService')]
-  [switch]$FileService, # Switch to copy files
-  [Parameter(Mandatory = $false, ParameterSetName = 'FileService')]
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [string[]]$sharelist = @("groupshare", "usershome$", "images$", "usersprofile$"), # List of shares on old server
-  [Parameter(Mandatory = $false, ParameterSetName = 'FileService')]
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [string]$newpath = "E:\fileserv", # location of files on local server
-  [Parameter(Mandatory = $false, ParameterSetName = 'FileService')]
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [switch]$createshare, # create share on local server
-  [Parameter(Mandatory = $false, ParameterSetName = 'InstallWindowsFeatures')]
-  [switch]$InstallWindowsFeatures, # Switch to install roles and features
-  [Parameter(Mandatory = $false, ParameterSetName = 'UninstallWindowsFeatures')]
-  [switch]$UninstallWindowsFeatures, # Switch to uninstall roles and features
-  [Parameter(Mandatory = $false, ParameterSetName = 'PrintService')]
-  [switch]$PrintService, # Switch to migrate print service
-  [Parameter(Mandatory = $false, ParameterSetName = 'DHCPService')]
-  [switch]$DHCPService, # Switch to migrate dhcp service
-  [Parameter(Mandatory = $false, ParameterSetName = 'Certificate')]
-  [switch]$Certificate, # Switch to generate certificate request
-  [Parameter(Mandatory = $false, ParameterSetName = 'Certificate')]
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [string]$FQDN = [System.Net.Dns]::GetHostByName(($env:computerName)).HostName, # Server FQDN for certificate
-  [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
-  [Parameter(Mandatory = $true, ParameterSetName = 'All')]
-  [string]$Mail, # Mail, for certificate renew or revoke
-  [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
-  [Parameter(Mandatory = $true, ParameterSetName = 'All')]
-  [string]$Organization, # Organization of the new server for certificate
-  [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
-  [Parameter(Mandatory = $true, ParameterSetName = 'All')]
-  [string]$OrganizationalUnit, # Organizational unit of the new server for certificate
-  [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
-  [Parameter(Mandatory = $true, ParameterSetName = 'All')]
-  [string]$City, # City, the new server is located for certificate
-  [Parameter(Mandatory = $false, ParameterSetName = 'Certificate')]
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [string]$State = "Schleswig-Holstein", # State, the new server is located for certificate
-  [Parameter(Mandatory = $false, ParameterSetName = 'Certificate')]
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [string]$Country = "DE", # Country, the new server is located
-  [Parameter(Mandatory = $false, ParameterSetName = 'All')]
-  [switch]$All                                                                      # Switch to do all migration steps excl. install roles and features
-)
+
+# Read JSON file
+$JsonFilePath = "parameters.json"
+$Parameters = Get-Content -Path $JsonFilePath | ConvertFrom-Json
+
+# Assign parameters from JSON object
+$oldserver = $Parameters.oldserver
+$Serverlog = $Parameters.Serverlog
+$serverlogheader = $Parameters.serverlogheader
+$FileService = $Parameters.FileService
+$sharelist = $Parameters.sharelist
+$newpath = $Parameters.newpath
+$createshare = $Parameters.createshare
+$InstallWindowsFeatures = $Parameters.InstallWindowsFeatures
+$UninstallWindowsFeatures = $Parameters.UninstallWindowsFeatures
+$PrintService = $Parameters.PrintService
+$DHCPService = $Parameters.DHCPService
+$Certificate = $Parameters.Certificate
+$FQDN = $Parameters.FQDN
+$Mail = $Parameters.Mail
+$Organization = $Parameters.Organization
+$OrganizationalUnit = $Parameters.OrganizationalUnit
+$City = $Parameters.City
+$State = $Parameters.State
+$Country = $Parameters.Country
+$All = $Parameters.All
+
+# Rest of the script
+
 
 #########################################
 #
