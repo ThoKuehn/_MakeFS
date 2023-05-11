@@ -18,5 +18,33 @@
   "City": "Example City",
   "State": "Schleswig-Holstein",
   "Country": "DE",
-  "All": true
+  "All": true,
+  "logfolder": "C:\\logs\\Migration",
+  "roboparams": [
+      "/COPYALL",
+      "/MIR",
+      "/MT:128",
+      "/COPY:DATSOU",
+      "/DCOPY:DAT",
+      "/DST",
+      "/R:1",
+      "/W:2",
+      "/NC",
+      "/NP",
+      "/J",
+      "/SEC",
+      "/ZB",
+      "/BYTES",
+      "/XF Sync-UserProfile.log Thumbs.db ~$* ~*.tmp ~*.wbk fbc*.tmp",
+      "/XD profile.v2"
+    ],
+    "serverlogfile": "%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp\\serverlog.txt",
+ 
+  
+  
+
+
+
 }
+
+
