@@ -39,7 +39,12 @@ $City = $Parameters.City
 $State = $Parameters.State
 $Country = $Parameters.Country
 $All = $Parameters.All
-
+$logfolder = $Parameterslogfolder
+$LogFile = $logfolder + "\" + $($($MyInvocation.MyCommand.Name).Replace('.ps1', '.log'))
+$roboparams = $Parametersroboparams
+$serverlogfile = $Parametersserverlogfile.Replace("%ProgramData%", $env:ProgramData)
+$serverlogheader = $Parametersserverlogheader
+$serverlogheadercontent = Get-Content -Path $serverlogheader
 # Rest of the script
 
 
@@ -47,43 +52,31 @@ $All = $Parameters.All
 #
 # no changes beyond this point
 #
-# Read config.json file
-$ConfigFilePath = "config.json"
-$Config = Get-Content -Path $ConfigFilePath | ConvertFrom-Json
-
-# Assign configuration variables from JSON object
-$logfolder = $Config.logfolder
-$LogFile = $logfolder + "\" + $($($MyInvocation.MyCommand.Name).Replace('.ps1', '.log'))
-$roboparams = $Config.roboparams
-$serverlogfile = $Config.serverlogfile.Replace("%ProgramData%", $env:ProgramData)
-$serverlogheader = $Config.serverlogheader
-$serverlogheadercontent = Get-Content -Path $serverlogheader
-
 
 #region functions
 function Write-Log {
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
-    param (
-        [Parameter(Mandatory)]
-        [string]$message,
-        [Parameter(ParameterSetName = 'Default')]
-        [ValidateSet('INFO', 'WARN', 'ERROR')]
-        [string]$level = 'HINT',
-        [Parameter()]
-        [string]$Log = $LogFile
-    )
+  [CmdletBinding(DefaultParameterSetName = 'Default')]
+  param (
+      [Parameter(Mandatory = $true)]
+      [string]$message,
+      [Parameter(ParameterSetName = 'Default')]
+      [ValidateSet('INFO', 'WARN', 'ERROR')]
+      [string]$level = 'HINT',
+      [Parameter()]
+      [string]$Log = $LogFile
+  )
 
-    switch ($level) {
-        'INFO'  { $color = 'Green' }
-        'WARN'  { $color = 'Yellow' }
-        'ERROR' { $color = 'Red' }
-        default { $color = 'White' }
-    }
+  switch ($level) {
+      'INFO'  { $color = 'Green' }
+      'WARN'  { $color = 'Yellow' }
+      'ERROR' { $color = 'Red' }
+      default { $color = 'White' }
+  }
 
-    $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $output = $date + " " + $level + " : " + $message
-    Write-Host -Object $output -ForegroundColor $color
-    $output | Out-File -FilePath $Log -Encoding utf8 -Append
+  $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  $output = $date + " " + $level + " : " + $message
+  Write-Host -Object $output -ForegroundColor $color
+  Add-Content -Path $Log -Value $output -Encoding utf8
 }
 #endregion functions
 
@@ -93,194 +86,202 @@ function Write-Log {
 Clear-Host
 
 # create log folder
-if (-not (Test-Path "$logfolder")) {
+if (-not (Test-Path -Path $logfolder)) {
   try {
-    New-Item -Path "$logfolder" -ItemType Directory -Force
+      $null = New-Item -Path $logfolder -ItemType Directory -Force
+      Write-Log -message "Log folder created" -level INFO
   }
   catch {
-    Write-Host "ERROR: Unable to create Log and Temp Folder $logfolder"
-    Pause
-    exit 1
+      Write-Host "ERROR: Unable to create Log and Temp Folder $logfolder"
+      Pause
+      exit 1
   }
-  Write-Log "Log folder created" -level INFO
 }
 
 Write-Log -message "Starting script execution" -level INFO
 Write-Log -message "Log files location is: $logfolder" -level INFO
 
 #region serverlog
-if (($Serverlog.IsPresent -eq $true) -or ($All.IsPresent -eq $true)) {
-  if (-not (Test-Path "$serverlogfile" -PathType Leaf)) {
-    Write-Log -message "Starting serverlog creation and setting file permission" -level INFO
-    try {
-      [void]$(New-Item -Path "$serverlogfile" -ItemType File -Force)
-      Out-File -InputObject $serverlogheadercontent -FilePath "$serverlogfile"
-      Start-Process -FilePath "$env:windir\System32\icacls.exe" -ArgumentList "`"$serverlogfile`" /grant *S-1-5-32-545:M"
-      Write-Log -message "Serverlog created" -level INFO
-    }
-    catch {
-      Write-Log -message "Unable to create $serverlogfile" -level ERROR
-    }
+if ($Serverlog.IsPresent -or $All.IsPresent) {
+  if (-not (Test-Path -Path $serverlogfile -PathType Leaf)) {
+      Write-Log -message "Starting serverlog creation and setting file permission" -level INFO
+      try {
+          $null = New-Item -Path $serverlogfile -ItemType File -Force
+          Set-Content -Path $serverlogfile -Value $serverlogheadercontent
+          Start-Process -FilePath "$env:windir\System32\icacls.exe" -ArgumentList "`"$serverlogfile`" /grant *S-1-5-32-545:M"
+          Write-Log -message "Serverlog created" -level INFO
+      }
+      catch {
+          Write-Log -message "Unable to create $serverlogfile" -level ERROR
+      }
   }
   else {
-    Write-Log -message "'$serverlogfile' already exists. Setting permissions to User:M" -level INFO
-    Start-Process -FilePath "$env:windir\System32\icacls.exe" -ArgumentList "`"$serverlogfile`" /grant *S-1-5-32-545:M"
+      Write-Log -message "'$serverlogfile' already exists. Setting permissions to User:M" -level INFO
+      Start-Process -FilePath "$env:windir\System32\icacls.exe" -ArgumentList "`"$serverlogfile`" /grant *S-1-5-32-545:M"
   }
 }
 else {
   Write-Log -message "Skipping Serverlog creation" -level INFO
 }
+
 #endregion serverlog
 
 #region windowsRaF
-if (($InstallWindowsFeatures.IsPresent -eq $true) -and ($UninstallWindowsFeatures.IsPresent -eq $true)) {
-  Write-Log -message "Currently it is not possible to uninstall and install windows roles and features in the same run. please restart with just one parameter specified" -level ERROR
+if ($InstallWindowsFeatures.IsPresent -and $UninstallWindowsFeatures.IsPresent) {
+  Write-Log -message "Currently it is not possible to uninstall and install windows roles and features in the same run. Please restart with just one parameter specified" -level ERROR
   break
 }
 
-if ($UninstallWindowsFeatures.IsPresent -eq $true) {
+if ($UninstallWindowsFeatures.IsPresent) {
   # remove unwanted/unsafe features
-  Write-Log -message "Uninstall-WindowsFeature -name PowerShell-v2, FS-SMB1-Client, FS-SMB1-Server, FS-SMB1 -LogPath `"$logfolder\Uninstall-WindowsFeature.log`"" -level INFO
-  $uninstJob = Start-Job -Command { Uninstall-WindowsFeature -Name PowerShell-v2, FS-SMB1-Client, FS-SMB1-Server, FS-SMB1 -LogPath "$logfolder\Uninstall-WindowsFeature.log" }
+  $uninstallFeatures = @('PowerShell-v2', 'FS-SMB1-Client', 'FS-SMB1-Server', 'FS-SMB1')
+  $uninstallLogPath = "$logfolder\Uninstall-WindowsFeature.log"
+
+  Write-Log -message "Uninstall-WindowsFeature -Name $($uninstallFeatures -join ',') -LogPath `"$uninstallLogPath`"" -level INFO
+
+  $uninstJob = Start-Job -Command {
+      param($features, $logPath)
+      Uninstall-WindowsFeature -Name $features -LogPath $logPath
+  } -ArgumentList $uninstallFeatures, $uninstallLogPath
+
   Receive-Job -Job $uninstJob -Wait | Select-Object Success, RestartNeeded, exitCode, FeatureResult
 
   # reboot system
   Write-Log -message "Restarting server to disable roles and features" -level INFO
-  # https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32shutdowntracker-method-in-class-win32-operatingsystem
-  # Timeout, Comment, ReasonCode,  Flags (6 = Forced Reboot)
-  # https://docs.microsoft.com/en-us/windows/win32/shutdown/system-shutdown-reason-codes
-  # SHTDN_REASON_MAJOR_OPERATINGSYSTEM | SHTDN_REASON_MINOR_RECONFIG | SHTDN_REASON_FLAG_PLANNED
-  # 0x00020000                         | 0x00000004                  | 0x80000000
-  # adding clean-ui (https://devblogs.microsoft.com/oldnewthing/20100831-00/?p=12993) 0x04000000
-  # -> 0x80020004
-  # -> [uint32]"0x84020004"
-  $rargs = @{
-    Timeout    = [System.UInt32]0
-    Comment    = 'Uninstall Windows roles and features'
-    ReasonCode = [System.UInt32]2214723588
-    Flags      = 6
-  }
-  Invoke-CimMethod -Query 'SELECT * FROM Win32_OperatingSystem' -MethodName 'Win32ShutdownTracker' -Arguments $rargs
+  $shutdownReason = 0x84020004
+  Restart-Computer -Force -Reason 'Uninstall Windows roles and features' -ShutdownEventTrackerReasonCode $shutdownReason
 }
 else {
   Write-Log -message "Skipping Disabling Windows roles and features" -level INFO
 }
 
-if ($InstallWindowsFeatures.IsPresent -eq $true) {
+if ($InstallWindowsFeatures.IsPresent) {
   # install needed features and restart server afterwards
-  Write-Log -message "Install-WindowsFeature -name FS-Fileserver, FS-SyncShareService, FS-Resource-Manager, DHCP, Print-Server, Web-Mgmt-Console, Web-Scripting-Tools, RSAT-DHCP, RSAT-FSRM-Mgmt, RSAT-Print-Services, RSAT-ADDS-Tools, RSAT-AD-PowerShell, GPMC, Remote-Assistance -LogPath `"$logfolder\Install-WindowsFeature.log`"" -level INFO
-  $instJob = Start-Job -Command { Install-WindowsFeature -Name FS-Fileserver, FS-SyncShareService, FS-Resource-Manager, DHCP, Print-Server, Web-Mgmt-Console, Web-Scripting-Tools, RSAT-DHCP, RSAT-FSRM-Mgmt, RSAT-Print-Services, RSAT-ADDS-Tools, RSAT-AD-PowerShell, GPMC, Remote-Assistance -LogPath "$logfolder\Install-WindowsFeature.log" }
+  $installFeatures = @(
+      'FS-Fileserver', 'FS-SyncShareService', 'FS-Resource-Manager', 'DHCP',
+      'Print-Server', 'Web-Mgmt-Console', 'Web-Scripting-Tools', 'RSAT-DHCP',
+      'RSAT-FSRM-Mgmt', 'RSAT-Print-Services', 'RSAT-ADDS-Tools', 'RSAT-AD-PowerShell',
+      'GPMC', 'Remote-Assistance'
+  )
+  $installLogPath = "$logfolder\Install-WindowsFeature.log"
+
+  Write-Log -message "Install-WindowsFeature -Name $($installFeatures -join ',') -LogPath `"$installLogPath`"" -level INFO
+
+  $instJob = Start-Job -Command {
+      param($features, $logPath)
+      Install-WindowsFeature -Name $features -LogPath $logPath
+  } -ArgumentList $installFeatures, $installLogPath
+
   Receive-Job -Job $instJob -Wait | Select-Object Success, RestartNeeded, exitCode, FeatureResult
 
   # reboot system
   Write-Log -message "Restarting server to enable roles and features" -level INFO
-  $rargs = @{
-    Timeout    = [System.UInt32]0
-    Comment    = 'Install Windows roles and features'
-    ReasonCode = [System.UInt32]2214723588
-    Flags      = 6
-  }
-  Invoke-CimMethod -Query 'SELECT * FROM Win32_OperatingSystem' -MethodName 'Win32ShutdownTracker' -Arguments $rargs
+  $shutdownReason = 0x84020004
+  Restart-Computer -Force -Reason 'Install Windows roles and features' -ShutdownEventTrackerReasonCode $shutdownReason
 }
 else {
   Write-Log -message "Skipping Enabling Windows roles and features" -level INFO
 }
+
 #endregion windowsRaF
 
 #region fileservice
-if (($FileService.IsPresent -eq $true) -or ($All.IsPresent -eq $true)) {
-  # copy folder structure with permissions
+if ($FileService.IsPresent -or $All.IsPresent) {
+  # Copy folder structure with permissions
   Write-Log -message "Starting copy process of '$oldserver' to '$newpath'" -level INFO
-  if (-not(Test-Path $newpath)) {
-    Write-Log -message "New-Item -Path '$newpath' -ItemType Directory -Force" -level INFO
-    try {
-      New-Item -Path "$newpath" -ItemType Directory -Force
-    }
-    catch {
-      Write-Log "Unable to create path" -level ERROR
-      exit 1
-    }
+
+  if (-not (Test-Path $newpath)) {
+      try {
+          Write-Log -message "Creating directory '$newpath'" -level INFO
+          New-Item -Path $newpath -ItemType Directory -Force | Out-Null
+      }
+      catch {
+          Write-Log "Unable to create path" -level ERROR
+          exit 1
+      }
   }
 
   Write-Log -message "Each share has its own log file for copied directories and files" -level INFO
-  foreach ($share in $sharelist) {
-    # shared folder on old server
-    $old = '\\' + $oldserver + '\' + $share
 
-    # check if source is available, if not stop working on it
-    if (-not(Test-Path -Path $old -PathType Container)) {
-      $message = "Unable to access '" + $old + "'"
-      Write-Log $message -level ERROR
-    }
-    else {
-      #get share on old server
+  foreach ($share in $sharelist) {
+      # Shared folder on old server
+      $old = '\\' + $oldserver + '\' + $share
+
+      # Check if source is available, if not stop working on it
+      if (-not (Test-Path -Path $old -PathType Container)) {
+          $message = "Unable to access '$old'"
+          Write-Log $message -level ERROR
+          continue
+      }
+
+      # Get share on old server
       $oShare = Get-CimInstance -ComputerName $oldserver -ClassName win32_share -Filter "Name = '$share'"
-      #folder name and description
-      $folder = Split-Path $($oShare.Path) -Leaf
+
+      # Folder name and description
+      $folder = Split-Path -Path $oShare.Path -Leaf
       $description = $oShare.Description
 
-      #if complete disks (administrative Shares [LW]$) are copied
+      # If complete disks (administrative Shares [LW]$) are copied
       if ($folder -match '([A-Z]|[a-z])\:\\' ) {
-        $folder = $folder.TrimEnd(':\')
-        $createshare = $false
+          $folder = $folder.TrimEnd(':\')
+          $createshare = $false
       }
 
-      # new local folder with share name
-      $new = $newpath.TrimEnd('\') + "\" + $folder
+      # New local folder with share name
+      $new = Join-Path -Path $newpath -ChildPath $folder
 
-      # date for log file
-      $sDate = Get-Date -Format yyyy-MM-dd_hh-mm
+      # Date for log file
+      $sDate = Get-Date -Format 'yyyy-MM-dd_hh-mm'
 
-      # log file for each share
+      # Log file for each share
       if ($folder.Length -eq 1) {
-        $rLogFile = $logfolder + "\" + $sDate + "_disk_" + $folder + ".log"
+          $rLogFile = Join-Path -Path $logfolder -ChildPath "$sDate`_disk_$folder.log"
       }
       else {
-        $rLogFile = $logfolder + "\" + $sDate + "_" + $folder + ".log"
+          $rLogFile = Join-Path -Path $logfolder -ChildPath "$sDate`_$folder.log"
       }
 
-      # add log file location to robocopy params
+      # Add log file location to robocopy params
       $arguments = $roboparams + "/UNILOG+:$rLogFile"
 
-      # new folder name is the same as old folder name
-      $message = "Starting copy '" + $old + "' -> '" + $new + "'"
+      # Start copy process
+      $message = "Starting copy '$old' -> '$new'"
       Write-Log $message -level INFO
       Write-Log -message "Logfile is: $rLogFile" -level INFO
-      Write-Log -message "Start-Process -NoNewWindow -Wait -FilePath `"$env:windir\System32\Robocopy.exe`" -ArgumentList `"$old $new $arguments`"" -level INFO
+      Write-Log -message "Robocopy command: Start-Process -NoNewWindow -Wait -FilePath `"$env:windir\System32\Robocopy.exe`" -ArgumentList `"$old`" `"$new`" $arguments" -level INFO
       Start-Process -NoNewWindow -Wait -FilePath "$env:windir\System32\Robocopy.exe" -ArgumentList "`"$old`" `"$new`" $arguments"
-      $message = "Finished copy '" + $old + "' -> '" + $new + "'"
+      $message = "Finished copy '$old' -> '$new'"
       Write-Log -message $message -level INFO
 
-      #share new folder
+      # Share new folder
       if ($createshare -eq $false) {
-        $message = "Skipping sharing of '$new'"
-        Write-Log -message $message -level INFO
+          $message = "Skipping sharing of '$new'"
+          Write-Log -message $message -level INFO
       }
       else {
-        if (-not(Get-SmbShare -Name $share)) {
-          $message = "Creating share '$share' for '$new'"
-          Write-Log -message $message -level INFO
-          $message = "New-SmbShare -Name $share -Path `"$new`" -Description `"$Description`" -FolderEnumerationMode AccessBased -CachingMode None -FullAccess `"Jeder`""
-          Write-Log -message $message -level INFO
-          try {
-            New-SmbShare -Name $share -Path "$new" -Description $description -FolderEnumerationMode AccessBased -CachingMode None -FullAccess "Jeder"
-          }
-          catch {
-            $message = "Unable to create share. Error was $_"
+          if (-not (Get-SmbShare -Name $share)) {
+            $message = "Creating share '$share' for '$new'"
+            Write-Log -message $message -level INFO
+            $message = "New-SmbShare -Name $share -Path "$new" -Description "$Description" -FolderEnumerationMode AccessBased -CachingMode None -FullAccess "Everyone""
+            Write-Log -message $message -level INFO
+            try {
+            New-SmbShare -Name $share -Path $new -Description $description -FolderEnumerationMode AccessBased -CachingMode None -FullAccess "Everyone"
+            }
+            catch {
+            $message = "Unable to create share. Error: $_"
             Write-Log -message $message -level ERROR
-          }
-        }
-        else {
-          $message = "Creating share '$share' for '$new' failed. share name already exists."
-          Write-Log -message $message -level ERROR
-        }
-      }
-    }
-  }
-}
-else {
-  Write-Log -message "Skipping File service migration" -level INFO
-}
+            }
+            }
+            else {
+            $message = "Creating share '$share' for '$new' failed. Share name already exists."
+            Write-Log -message $message -level ERROR
+            }
+            }
+            }
+            }
+            else {
+            Write-Log -message "Skipping File service migration" -level INFO
+            }
 #endregion fileservice
 
 #region printservice
