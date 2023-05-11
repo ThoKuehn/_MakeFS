@@ -34,35 +34,3 @@ Changes made to optimize the `Write-Log` function in the PowerShell script inclu
 4. Using a hashtable to map log levels to console colors, rather than an if-else statement, for improved readability and maintainability.
 5. Reformatting the log message to include the message level in square brackets before the message itself, for improved readability and easier parsing of log files.
 
-The resulting function definition is:
-
-```
-function Write-LogMessage {
-  [CmdletBinding()]
-  param (
-    [Parameter(Mandatory = $true)]
-    $message,
-    [Parameter(Mandatory = $false)]
-    [ValidateSet('INFO', 'WARN', 'ERROR')]
-    [string]
-    $level = 'INFO',
-    [Parameter(Mandatory = $false)]
-    [string]
-    $logFilePath = $LogFile
-  )
-
-  $logLevelColors = @{
-    'INFO' = 'Green'
-    'WARN' = 'Yellow'
-    'ERROR' = 'Red'
-    'HINT' = 'White'
-  }
-
-  $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-  $levelColor = $logLevelColors[$level]
-  $output = "[$level] $date : $message"
-  
-  Write-Host -Object $output -ForegroundColor $levelColor
-  Out-File -InputObject $output -FilePath $logFilePath -Encoding utf8 -Append
-}
-```
